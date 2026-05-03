@@ -1,0 +1,47 @@
+---
+layout: default
+---
+<article class="page" itemscope itemtype="https://schema.org/MedicalWebPage">
+  <header class="page-header">
+    {% if page.section %}
+      <p class="page-eyebrow">
+        <a href="{{ page.section_url | relative_url }}">{{ page.section }}</a>
+      </p>
+    {% endif %}
+    <h1 class="page-title" itemprop="headline">{{ page.title }}</h1>
+    {% if page.lead %}
+      <p class="page-lead">{{ page.lead }}</p>
+    {% endif %}
+  </header>
+
+  <div class="page-body" itemprop="articleBody">
+    {{ content }}
+  </div>
+
+  {% if page.section_key %}
+    {% assign section = site.data.navigation.primary | where: "key", page.section_key | first %}
+    {% if section and section.children.size > 1 %}
+      <nav class="page-siblings" aria-label="Más en {{ section.title }}">
+        <h2>Más en {{ section.title }}</h2>
+        <ul>
+          {% for child in section.children %}
+            {% unless child.url == page.url %}
+              <li><a href="{{ child.url | relative_url }}">{{ child.title }}</a></li>
+            {% endunless %}
+          {% endfor %}
+        </ul>
+      </nav>
+    {% endif %}
+  {% endif %}
+
+  <footer class="page-meta">
+    <p>
+      <span itemprop="author" itemscope itemtype="https://schema.org/Physician">
+        Por <span itemprop="name">{{ site.author.name }}</span>
+      </span>
+      {% if page.last_modified_at %}
+        · Actualizado el <time datetime="{{ page.last_modified_at | date_to_xmlschema }}" itemprop="dateModified">{{ page.last_modified_at | date: "%d de %B de %Y" }}</time>
+      {% endif %}
+    </p>
+  </footer>
+</article>

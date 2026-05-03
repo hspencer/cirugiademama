@@ -1,0 +1,36 @@
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+  <!-- Color scheme: applied before paint to avoid FOUC -->
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem("color-scheme");
+        var scheme = stored || "auto";
+        document.documentElement.dataset.colorScheme = scheme;
+      } catch (e) {}
+    })();
+  </script>
+
+  <meta name="theme-color" content="#fdf2f6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1a0e14" media="(prefers-color-scheme: dark)">
+
+  <!-- jekyll-seo-tag generates: title, description, canonical, OG, Twitter, JSON-LD -->
+  {% seo %}
+
+  <link rel="alternate" type="application/rss+xml" href="{{ '/feed.xml' | relative_url }}" title="{{ site.title }}">
+  <link rel="sitemap" type="application/xml" href="{{ '/sitemap.xml' | relative_url }}">
+
+  <!-- Fonts: Lexend — designed for reading proficiency, all relevant weights -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap">
+
+  <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
+
+  <link rel="icon" href="{{ '/assets/favicon.ico' | relative_url }}" sizes="any">
+  <link rel="icon" href="{{ '/assets/favicon.png' | relative_url }}" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="{{ '/assets/apple-touch-icon.png' | relative_url }}">
+</head>

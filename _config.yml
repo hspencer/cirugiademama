@@ -1,0 +1,73 @@
+# Site identity
+title: "Cáncer de Mama"
+subtitle: "y otras enfermedades benignas de la mama"
+description: >-
+  Información clara y con base científica sobre cáncer de mama y otras
+  enfermedades benignas de la mama, dirigida a pacientes, familiares
+  y público general.
+author:
+  name: "Dra. Marcia Valenzuela"
+  title: "Cirujana de mama"
+url: "https://cirugiademama.cl"
+baseurl: ""
+lang: "es-CL"
+locale: "es_CL"
+timezone: "America/Santiago"
+
+# Contact (rendered in footer)
+contact:
+  label: "Reservas Clínica Santa María"
+  phone: "+56 2 2913 0000"
+  phone_href: "tel:+56229130000"
+  address:
+    street: "Av. Santa María 0500"
+    locality: "Providencia, Santiago"
+    country: "Chile"
+  website: "https://www.clinicasantamaria.cl"
+
+# SEO defaults
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "page"
+      lang: "es-CL"
+  - scope:
+      path: ""
+      type: "glossary"
+    values:
+      layout: null
+
+og_image: "/assets/og-default.png"
+twitter:
+  card: "summary_large_image"
+
+# Collections
+collections:
+  pages:
+    output: true
+    permalink: "/:path/"
+  glossary:
+    output: false
+
+# Build
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+permalink: "/:slug/"
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - node_modules
+  - scripts
+  - "*.xml"        # legacy WordPress export
+  - cirugiademama.allium
+  - README.md

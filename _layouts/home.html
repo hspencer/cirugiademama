@@ -1,0 +1,32 @@
+---
+layout: default
+---
+<section class="home-hero">
+  <div class="home-hero-inner">
+    <h1 class="home-title">{{ site.title }}</h1>
+    <p class="home-subtitle">{{ site.subtitle }}</p>
+  </div>
+</section>
+
+<section class="home-intro">
+  {{ content }}
+</section>
+
+<nav class="home-sections" aria-label="Secciones del sitio">
+  <h2>Explorar el sitio</h2>
+  <ul class="home-cards">
+    {% for section in site.data.navigation.primary %}
+      <li class="home-card">
+        <a href="{{ section.url | relative_url }}">
+          <h3>{{ section.title }}</h3>
+          {% if section.children %}
+            <p class="home-card-children">
+              {% for child in section.children limit: 3 %}{{ child.title }}{% unless forloop.last %} · {% endunless %}{% endfor %}{% if section.children.size > 3 %} · …{% endif %}
+            </p>
+          {% endif %}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+</nav>
+

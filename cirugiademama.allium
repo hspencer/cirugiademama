@@ -1,0 +1,952 @@
+-- allium: 3
+-- cirugiademama.allium
+
+-- Scope: Static information site about breast cancer published at cirugiademama.cl,
+--        migrated from a legacy WordPress export (WXR XML) to a Jekyll site
+--        deployed on GitHub Pages.
+--
+-- Includes:
+--   - Content model: pages, sections, glossary terms, images
+--   - Curation lifecycle: scraped -> in_review -> published | discarded
+--   - Reader experience: navigation, glossary tooltips, accessibility (WCAG 2.1 AA),
+--     light/dark colour schemes
+--   - SEO surface: per-page metadata, Open Graph, Twitter cards, structured data,
+--     sitemap.xml, robots.txt, canonical URLs
+--   - Public deployment surface: domain, hosting, no backend
+--
+-- Excludes:
+--   - Implementation choices internal to Jekyll (layouts, includes, plugins)
+--   - The scraping algorithm itself (treated as a black-box deferred spec)
+--   - Authoring workflow inside an editor (out of scope)
+--   - Comments, contact forms, newsletters, search backend
+--   - Analytics and tracking (no third-party trackers; Search Console is acceptable
+--     as it relies only on a verification meta tag)
+--
+-- Background:
+--   - Site owner: Dra. Marcia Valenzuela (breast surgeon).
+--   - Source export: cncerdemama.WordPress.2026-05-02.xml in this folder.
+--   - Source contains 33 content pages, 47 glossary terms, 51 image attachments,
+--     and 6 navigation sections; news/blog section is being deprecated.
+
+------------------------------------------------------------
+-- External Entities
+------------------------------------------------------------
+
+-- The legacy WordPress site, treated as a read-only data source for the
+-- one-shot migration. It is not governed by this spec.
+external entity LegacyWordPressExport {
+    file_path: String
+    base_url: String
+    exported_at: Timestamp
+}
+
+-- The Clínica Santa María contact channel. The site links to it but does
+-- not integrate with it. Only its public phone number is referenced.
+external entity ClinicaSantaMaria {
+    reservations_phone: String
+}
+
+-- Visitors of the public site. Identity is not modelled (no authentication).
+external entity Visitor {
+    user_agent: String
+    viewport_width: Integer
+    prefers_reduced_motion: Boolean
+    prefers_color_scheme: light | dark | no_preference
+}
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+value Slug {
+    -- URL path segment, stable across migration. Reused verbatim from the
+    -- legacy site's <wp:post_name> to preserve inbound links and SEO.
+    value: String
+}
+
+value AltText {
+    -- Descriptive text for images, mandatory for accessibility.
+    text: String
+    is_decorative: Boolean
+}
+
+value MarkdownBody {
+    raw: String
+}
+
+value PostalAddress {
+    street: String
+    locality: String
+    country: String
+}
+
+value SocialImage {
+    -- Image used by Open Graph / Twitter cards. Should be 1200x630 minimum.
+    url: String
+    width: Integer
+    height: Integer
+    alt: String
+}
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum ContentStatus {
+    scraped       -- raw output from migration, not reviewed
+    in_review     -- being curated by the site owner
+    published     -- live on cirugiademama.cl
+    discarded     -- intentionally not migrated
+}
+
+enum ColorScheme {
+    light
+    dark
+}
+
+enum OpenGraphType {
+    website       -- generic page
+    article       -- a content page (most pages on this site)
+    profile       -- the /marcia/ page
+}
+
+enum SchemaOrgType {
+    -- Subset of schema.org types used by this site.
+    MedicalWebPage         -- pages explaining medical concepts
+    Physician              -- the /marcia/ page
+    DefinedTerm            -- a glossary entry
+    DefinedTermSet         -- the glossary index
+    FAQPage                -- /preguntas-y-respuestas/
+    WebSite                -- the site as a whole (homepage)
+}
+
+enum SectionKey {
+    el_cancer
+    deteccion
+    tipos
+    tratamiento
+    post_cancer
+    enfermedades_benignas
+    -- Top-level singular pages live outside a section:
+    home
+    marcia
+    glosario
+    preguntas_y_respuestas
+    mi_riesgo
+    links_de_interes
+}
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+entity Section {
+    -- A grouping in the main navigation menu (e.g. "Detección").
+    key: SectionKey
+    title: String
+    slug: Slug
+    order: Integer
+    pages: Page with section = this
+    published_pages: pages where status = published
+}
+
+entity Page {
+    -- A single content page on the site.
+    slug: Slug                        -- preserved from legacy site
+    title: String
+    section: Section?                 -- null for top-level pages (home, marcia, ...)
+    body: MarkdownBody
+    images: Image with page = this
+    status: ContentStatus
+
+    -- SEO metadata. Required at publication time.
+    seo: SeoMetadata with page = this
+
+    -- Legacy origin for traceability during curation.
+    legacy_url: String
+    legacy_post_id: Integer
+
+    -- Curation metadata (set when leaving the scraped state).
+    reviewed_at: Timestamp when status = in_review | published | discarded
+    published_at: Timestamp when status = published
+    last_modified_at: Timestamp when status = published
+
+    transitions status {
+        scraped -> in_review
+        scraped -> discarded
+        in_review -> published
+        in_review -> discarded
+        published -> in_review     -- editorial updates
+        terminal: discarded
+    }
+
+    -- Outbound URL must remain identical to the legacy URL after publication.
+    invariant StableUrl {
+        status = published implies slug.value = legacy_slug_from(legacy_url)
+    }
+}
+
+entity SeoMetadata {
+    -- Per-page search and social metadata. One instance per Page.
+    page: Page
+
+    -- Core meta tags
+    meta_title: String                -- ~50-60 characters; falls back to page.title
+    meta_description: String          -- ~150-160 characters; manually written
+    canonical_url: String             -- absolute URL with https
+    robots_directive: index | noindex
+    keywords: Set<String>             -- not load-bearing for Google but kept for Bing/Yandex
+
+    -- Open Graph (Facebook, LinkedIn, WhatsApp previews)
+    og_type: OpenGraphType
+    og_image: SocialImage
+    og_locale: String                 -- "es_CL"
+
+    -- Twitter cards
+    twitter_card: summary | summary_large_image
+    twitter_image: SocialImage
+
+    -- Structured data (JSON-LD blob)
+    schema_type: SchemaOrgType
+
+    -- Hreflang (only one language for now)
+    hreflang: String                  -- "es-CL"
+
+    invariant TitleNotEmpty       { meta_title != "" }
+    invariant DescriptionNotEmpty { meta_description != "" }
+    invariant CanonicalIsHttps    { starts_with(canonical_url, "https://") }
+}
+
+deferred starts_with
+
+entity GlossaryTerm {
+    -- A medical term shown as an inline tooltip in page bodies and listed
+    -- on the /glosario/ index page.
+    slug: Slug
+    term: String                      -- e.g. "metástasis"
+    definition: MarkdownBody
+    aliases: Set<String>              -- other surface forms ("metástasis", "metástasis cerebral")
+    status: ContentStatus
+
+    transitions status {
+        scraped -> in_review
+        scraped -> discarded
+        in_review -> published
+        in_review -> discarded
+        published -> in_review
+        terminal: discarded
+    }
+}
+
+entity Image {
+    -- An asset referenced by one or more pages. Stored locally under /assets/.
+    page: Page
+    source_url: String                -- original URL on legacy site
+    local_path: String                -- relative path within the repo
+    alt: AltText
+    width: Integer
+    height: Integer
+}
+
+-- Singletons created by `default` declarations below.
+entity HomePage {
+    welcome_body: MarkdownBody
+    signature: String                 -- "Dra. Marcia Valenzuela"
+    section_links: Set<Section>       -- visible quick-access cards
+}
+
+entity Sitemap {
+    -- Single sitemap.xml served at /sitemap.xml.
+    entries: SitemapEntry with sitemap = this
+    last_built_at: Timestamp
+}
+
+entity SitemapEntry {
+    sitemap: Sitemap
+    url: String                       -- absolute URL
+    last_modified: Timestamp
+    change_frequency: daily | weekly | monthly | yearly
+    priority: Decimal                 -- 0.0 to 1.0
+}
+
+entity RobotsTxt {
+    -- Single /robots.txt served at the site root.
+    user_agent: String                -- typically "*"
+    disallow_paths: Set<String>       -- typically empty for an info site
+    sitemap_url: String               -- absolute URL of /sitemap.xml
+}
+
+entity SiteIdentity {
+    title: String                     -- "Cáncer de Mama"
+    subtitle: String                  -- "y otras enfermedades benignas de la mama"
+    primary_domain: String            -- "cirugiademama.cl"
+    canonical_origin: String          -- "https://cirugiademama.cl"
+    locale: String                    -- "es-CL"
+    palette: pink_breast_cancer | other
+    typeface_family: String           -- "Lexend"
+    color_schemes: Set<ColorScheme>   -- {light, dark}
+    default_og_image: SocialImage
+    author_name: String               -- "Dra. Marcia Valenzuela"
+    publisher_name: String            -- same as author for personal site
+    site_description: String          -- used as default meta description
+    search_console_verification: String?   -- google verification meta tag, if any
+}
+
+entity ContactBlock {
+    -- Single contact reference shown in the footer of every page.
+    label: String                     -- "Clínica Santa María — Reservas"
+    phone: String                     -- "+56 2 2913 0000"
+    phone_href: String                -- "tel:+56229130000"
+    address: PostalAddress
+    website: String                   -- public URL of the clinic
+}
+
+------------------------------------------------------------
+-- Defaults
+------------------------------------------------------------
+
+default SiteIdentity site = {
+    title: "Cáncer de Mama",
+    subtitle: "y otras enfermedades benignas de la mama",
+    primary_domain: "cirugiademama.cl",
+    canonical_origin: "https://cirugiademama.cl",
+    locale: "es-CL",
+    palette: pink_breast_cancer,
+    typeface_family: "Lexend",
+    color_schemes: { light, dark },
+    default_og_image: {
+        url: "https://cirugiademama.cl/assets/og-default.png",
+        width: 1200, height: 630,
+        alt: "Cáncer de Mama — sitio informativo de la Dra. Marcia Valenzuela"
+    },
+    author_name: "Dra. Marcia Valenzuela",
+    publisher_name: "Dra. Marcia Valenzuela",
+    site_description:
+        "Información clara y con base científica sobre cáncer de mama y otras "
+        + "enfermedades benignas de la mama, dirigida a pacientes, familiares "
+        + "y público general."
+}
+
+default ContactBlock contact = {
+    label: "Clínica Santa María — Reservas",
+    phone: "+56 2 2913 0000",
+    phone_href: "tel:+56229130000",
+    address: {
+        street: "Av. Santa María 0500",
+        locality: "Providencia, Santiago",
+        country: "Chile"
+    },
+    website: "https://www.clinicasantamaria.cl"
+}
+
+default Section sec_el_cancer = {
+    key: el_cancer, title: "El cáncer", slug: { value: "el-cancer" }, order: 1
+}
+default Section sec_deteccion = {
+    key: deteccion, title: "Detección", slug: { value: "deteccion" }, order: 2
+}
+default Section sec_tipos = {
+    key: tipos, title: "Tipos", slug: { value: "tipos" }, order: 3
+}
+default Section sec_tratamiento = {
+    key: tratamiento, title: "Tratamiento", slug: { value: "tratamiento" }, order: 4
+}
+default Section sec_post_cancer = {
+    key: post_cancer, title: "Post cáncer", slug: { value: "post-cancer" }, order: 5
+}
+default Section sec_enfermedades_benignas = {
+    key: enfermedades_benignas, title: "Enfermedades Benignas",
+    slug: { value: "enfermedades-benignas" }, order: 6
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    -- Display
+    min_body_font_size_px: Integer = 18
+    min_contrast_ratio_normal: Decimal = 4.5     -- WCAG 2.1 AA for body text
+    min_contrast_ratio_large: Decimal = 3.0      -- WCAG 2.1 AA for large text
+
+    -- Glossary tooltip behaviour
+    tooltip_dismiss_on_escape: Boolean = true
+    tooltip_dismiss_on_outside_click: Boolean = true
+
+    -- Migration
+    scrape_output_directory: String = "_drafts/"
+    image_output_directory: String = "assets/images/"
+    preserve_legacy_slugs: Boolean = true
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+-- ---------- Migration: scrape → drafts ----------
+
+rule ScrapeLegacyExport {
+    -- One-shot migration of every <item> in the WordPress XML export to a
+    -- local Markdown draft. Pages, glossary terms and image attachments are
+    -- materialised; everything else (menus, themes, CSS, contact forms,
+    -- nav_menu_items, news posts) is intentionally ignored.
+    when: ScrapeRequested(export: LegacyWordPressExport)
+    ensures:
+        for item in WordPressItems(export) where item.post_type = page:
+            Page.created(
+                slug: { value: item.post_name },
+                title: item.title,
+                section: section_for(item),
+                body: html_to_markdown(item.content),
+                legacy_url: item.link,
+                legacy_post_id: item.id,
+                status: scraped
+            )
+        for item in WordPressItems(export) where item.post_type = glossary:
+            GlossaryTerm.created(
+                slug: { value: item.post_name },
+                term: item.title,
+                definition: html_to_markdown(item.content),
+                aliases: surface_forms_of(item.title),
+                status: scraped
+            )
+        for item in WordPressItems(export) where item.post_type = attachment:
+            let downloaded = download_asset(item.attachment_url)
+            Image.created(
+                page: page_referencing(item),
+                source_url: item.attachment_url,
+                local_path: downloaded.local_path,
+                alt: { text: item.title, is_decorative: false },
+                width: downloaded.width,
+                height: downloaded.height
+            )
+
+    @guidance
+        -- The actual XML parsing, HTML-to-Markdown conversion, slug derivation
+        -- and asset downloading are deferred to the migration tooling. This
+        -- spec describes only the entities that result.
+}
+
+deferred WordPressItems              -- iterates <item> nodes from the WXR file
+deferred html_to_markdown            -- converts WordPress HTML/Gutenberg to Markdown
+deferred section_for                 -- maps a legacy item to its Section via menu structure
+deferred surface_forms_of            -- expands a term into a set of inflected matches
+deferred download_asset              -- fetches an attachment and stores it locally
+deferred page_referencing            -- finds the page that owns an attachment
+deferred legacy_slug_from            -- extracts the slug from a legacy URL
+
+-- ---------- Curation lifecycle ----------
+
+rule MoveToReview {
+    when: CuratorOpensDraft(curator, draft: Page)
+    requires: draft.status = scraped
+    ensures:
+        draft.status = in_review
+        draft.reviewed_at = now
+}
+
+rule PublishPage {
+    when: CuratorPublishesPage(curator, page: Page)
+    requires: page.status = in_review
+    requires: page.body.raw != ""
+    requires: page.title != ""
+    ensures:
+        page.status = published
+        page.published_at = now
+}
+
+rule DiscardPage {
+    when: CuratorDiscardsPage(curator, page: Page, reason?)
+    requires: page.status in {scraped, in_review}
+    ensures: page.status = discarded
+}
+
+rule MoveTermToReview {
+    when: CuratorOpensTerm(curator, term: GlossaryTerm)
+    requires: term.status = scraped
+    ensures:
+        term.status = in_review
+        term.reviewed_at = now
+}
+
+rule PublishTerm {
+    when: CuratorPublishesTerm(curator, term: GlossaryTerm)
+    requires: term.status = in_review
+    requires: term.definition.raw != ""
+    ensures:
+        term.status = published
+        term.published_at = now
+}
+
+-- ---------- Reader experience ----------
+
+rule RenderGlossaryTooltip {
+    -- When a published page's body contains a surface form of a published
+    -- glossary term, the rendered output marks that occurrence as an
+    -- interactive tooltip trigger. Activation reveals the definition.
+    when: VisitorOpensPage(visitor: Visitor, page: Page)
+    requires: page.status = published
+    ensures:
+        for term in published_glossary_terms_referenced_by(page):
+            TooltipTriggerRendered(
+                page: page,
+                term: term,
+                activates_on: { tap, click, focus_enter },
+                dismisses_on: { escape_key, outside_click, focus_leave },
+                fallback_link: "/glosario/#" + term.slug.value
+            )
+
+    @guidance
+        -- The fallback link guarantees the term remains reachable when JS is
+        -- unavailable or assistive tech bypasses the popover. The /glosario/
+        -- page lists every published term, regardless of whether it appears
+        -- inline anywhere.
+}
+
+deferred published_glossary_terms_referenced_by
+
+rule RenderNavigation {
+    when: VisitorOpensPage(visitor: Visitor, page: Page)
+    ensures:
+        Navigation.created(
+            primary_links: Sections ordered by order,
+            top_level_links: { marcia, glosario, preguntas_y_respuestas, mi_riesgo, links_de_interes },
+            current_section: page.section,
+            footer_contact: ContactBlock_default
+        )
+}
+
+rule HomePageRender {
+    when: VisitorOpensPage(visitor: Visitor, page: Page)
+    requires: page.section = null
+    requires: page.slug.value = ""
+    ensures:
+        HomePageView.created(
+            welcome_body: HomePage_default.welcome_body,
+            signature: "Dra. Marcia Valenzuela",
+            section_cards: Sections,
+            secondary_links: { marcia, glosario, preguntas_y_respuestas, mi_riesgo }
+        )
+}
+
+rule ApplyColorScheme {
+    -- The site honours the visitor's prefers-color-scheme. The user may
+    -- override via a toggle persisted in localStorage; the toggle has three
+    -- positions: auto (follow system), light, dark.
+    when: VisitorOpensPage(visitor: Visitor, page: Page)
+    ensures:
+        let scheme =
+            if visitor.prefers_color_scheme = dark: dark
+            else: light
+        ColorSchemeApplied(visitor: visitor, scheme: scheme)
+}
+
+-- ---------- SEO output ----------
+
+rule RenderPageSeoTags {
+    -- Each published page emits a complete set of head-level metadata.
+    when: VisitorOpensPage(visitor: Visitor, page: Page)
+    requires: page.status = published
+    ensures:
+        SeoHeadRendered(
+            page: page,
+            title_tag: page.seo.meta_title,
+            meta_description: page.seo.meta_description,
+            canonical: page.seo.canonical_url,
+            robots: page.seo.robots_directive,
+            keywords: page.seo.keywords,
+            og: {
+                type: page.seo.og_type,
+                title: page.seo.meta_title,
+                description: page.seo.meta_description,
+                url: page.seo.canonical_url,
+                image: page.seo.og_image,
+                locale: page.seo.og_locale,
+                site_name: SiteIdentity_default.title
+            },
+            twitter: {
+                card: page.seo.twitter_card,
+                title: page.seo.meta_title,
+                description: page.seo.meta_description,
+                image: page.seo.twitter_image
+            },
+            json_ld: schema_org_json(page.seo.schema_type, page),
+            hreflang: page.seo.hreflang,
+            theme_color_light: pink_breast_cancer_hex(light),
+            theme_color_dark: pink_breast_cancer_hex(dark)
+        )
+
+    @guidance
+        -- The MedicalWebPage type signals to search engines that the
+        -- content is health-related, which surfaces author and reviewer
+        -- attribution in rich results. Always include `author` and
+        -- `dateModified` in the JSON-LD payload.
+}
+
+deferred schema_org_json
+deferred pink_breast_cancer_hex
+
+rule BuildSitemapOnPublish {
+    -- Sitemap is rebuilt every time a page transitions to or from
+    -- published. In a Jekyll context this is implicit (the jekyll-sitemap
+    -- plugin runs on every build), but we name it explicitly so the
+    -- behaviour is testable.
+    when: page: Page.status transitions_to published
+    ensures:
+        SitemapRebuildRequested(trigger_page: page, at: now)
+}
+
+rule RegenerateSitemap {
+    when: SitemapRebuildRequested(trigger_page, at)
+    ensures:
+        for sm in Sitemaps:
+            sm.last_built_at = at
+            for entry in sm.entries:
+                not exists entry
+        for sm in Sitemaps:
+            for p in Pages where status = published:
+                SitemapEntry.created(
+                    sitemap: sm,
+                    url: p.seo.canonical_url,
+                    last_modified: p.last_modified_at,
+                    change_frequency: monthly,
+                    priority: priority_for(p)
+                )
+}
+
+deferred priority_for                -- assigns a sitemap priority based on page role
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant EveryPublishedPageHasContent {
+    for p in Pages:
+        p.status = published implies p.body.raw != "" and p.title != ""
+}
+
+invariant EveryPublishedSectionPageBelongsToASection {
+    -- Pages whose slug doesn't match a known top-level slug must live in a section.
+    for p in Pages:
+        p.status = published and p.slug.value not in {
+            "", "marcia", "glosario", "preguntas-y-respuestas",
+            "mi-riesgo", "links-de-interes"
+        } implies p.section != null
+}
+
+invariant EveryImageHasAltText {
+    -- WCAG 1.1.1 — non-text content must have a text alternative, unless
+    -- explicitly marked decorative.
+    for i in Images:
+        i.alt.is_decorative or i.alt.text != ""
+}
+
+invariant SluggsAreUnique {
+    for a in Pages:
+        for b in Pages:
+            a != b and a.status = published and b.status = published
+                implies a.slug.value != b.slug.value
+}
+
+invariant GlossaryTermSlugsAreUnique {
+    for a in GlossaryTerms:
+        for b in GlossaryTerms:
+            a != b and a.status = published and b.status = published
+                implies a.slug.value != b.slug.value
+}
+
+invariant NoBrokenLegacyLinks {
+    -- After publication every published page is reachable at the same path
+    -- it had on the legacy WordPress site.
+    for p in Pages:
+        p.status = published implies p.slug.value = legacy_slug_from(p.legacy_url)
+}
+
+invariant ResponsiveLayoutAcrossViewports {
+    -- Prose annotation only: the layout must remain usable from 320px to
+    -- 2560px viewport widths. Verification is via manual / automated
+    -- visual checks, not state.
+    true
+    -- @guidance: tested via the responsive checklist in the curation surface.
+}
+
+invariant EveryPublishedPageHasSeoMetadata {
+    -- A page cannot be published without a complete SEO record.
+    for p in Pages:
+        p.status = published implies
+            p.seo.meta_title != ""
+            and p.seo.meta_description != ""
+            and starts_with(p.seo.canonical_url, "https://cirugiademama.cl")
+}
+
+invariant CanonicalUrlsMatchSlug {
+    -- The canonical URL is derived from and consistent with the slug.
+    for p in Pages:
+        p.status = published implies
+            p.seo.canonical_url = "https://cirugiademama.cl/" + p.slug.value + "/"
+            or p.seo.canonical_url = "https://cirugiademama.cl/"
+}
+
+invariant OpenGraphImageIsAbsolute {
+    -- OG images must be absolute URLs (Facebook does not follow relative paths).
+    for p in Pages:
+        p.status = published implies starts_with(p.seo.og_image.url, "https://")
+}
+
+------------------------------------------------------------
+-- Actor Declarations
+------------------------------------------------------------
+
+actor Reader {
+    identified_by: Visitor where true
+}
+
+actor Curator {
+    -- Owners of the repository who curate scraped drafts before publication.
+    -- For this site there are exactly two: Marcia (subject-matter expert) and
+    -- Herbert (technical operator). Authentication is delegated to GitHub.
+    identified_by: Visitor where true
+    -- ^ identity at the spec level is whoever holds write access to the repo;
+    --   the spec does not model GitHub auth.
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface ReaderSiteView {
+    -- The public, unauthenticated reading experience at cirugiademama.cl.
+    facing reader: Reader
+    context page: Page where status = published
+
+    exposes:
+        page.title
+        page.body
+        page.section.title
+        page.images
+        SiteIdentity_default.title
+        SiteIdentity_default.subtitle
+        ContactBlock_default
+
+    provides:
+        VisitorOpensPage(reader, page)
+        VisitorActivatesGlossaryTerm(reader, page, term: GlossaryTerm)
+            when term.status = published
+        VisitorOpensExternalContact(reader)
+
+    related:
+        GlossaryIndexView(page) when page.slug.value = "glosario"
+        HomePageView(page) when page.slug.value = ""
+
+    @guarantee WcagAaConformance
+        -- All content rendered through this surface meets WCAG 2.1 Level AA:
+        -- minimum contrast, keyboard operability, focus visible, no content
+        -- relying on hover alone, and text scalable to 200% without loss.
+
+    @guarantee ResponsiveAcrossViewports
+        -- Renders without horizontal scroll on any viewport width from
+        -- 320px (small phones) to 2560px (large desktops).
+
+    @guarantee NoServerSideDependencies
+        -- Pages render correctly when served as static files. No backend,
+        -- no third-party iframes, no contact forms, no analytics calls.
+
+    @guarantee LightAndDarkColorSchemes
+        -- The site honours prefers-color-scheme and offers a manual
+        -- override (auto / light / dark) persisted in localStorage. Both
+        -- schemes meet the same WCAG AA contrast targets. The pink palette
+        -- shifts to a higher-luminance variant in dark mode to remain on
+        -- brand without losing legibility against dark backgrounds.
+
+    @guidance
+        -- Typography: Lexend across weights 300/400/500/600/700. Lexend is
+        -- designed to improve reading proficiency, valuable for medical
+        -- content read by anxious patients and family members.
+        -- Body text minimum 18px. Line length capped near 75 characters.
+        -- Palette: variations of pink, the colour traditionally associated
+        -- with breast cancer awareness. A single accent for links and
+        -- interactive states. Avoid pure black on pure white. Top
+        -- navigation only — no left sidebar.
+}
+
+surface SeoSurface {
+    -- The boundary between this site and search engines / social-media
+    -- crawlers. The counterpart is automated user agents (Googlebot,
+    -- Bingbot, Twitterbot, facebookexternalhit, LinkedInBot, etc.).
+    facing crawler: Reader
+    context page: Page where status = published
+
+    exposes:
+        page.seo.meta_title
+        page.seo.meta_description
+        page.seo.canonical_url
+        page.seo.robots_directive
+        page.seo.og_type
+        page.seo.og_image
+        page.seo.twitter_card
+        page.seo.twitter_image
+        page.seo.schema_type
+        page.last_modified_at
+        page.title
+        page.body
+
+    @guarantee CompleteHeadMetadata
+        -- Every page emits: <title>, meta description, canonical, robots,
+        -- viewport, charset, theme-color (light + dark), OG (type, title,
+        -- description, url, image, locale, site_name), Twitter card
+        -- (card, title, description, image) and a JSON-LD <script> with
+        -- the appropriate schema.org type.
+
+    @guarantee SitemapAndRobots
+        -- /sitemap.xml lists every published page with its last-modified
+        -- timestamp; /robots.txt allows all user agents and references
+        -- the sitemap. Both files are served from the site root with
+        -- correct Content-Type headers.
+
+    @guarantee HumanReadableUrls
+        -- URLs use lowercase kebab-case slugs (no query strings, no
+        -- numeric IDs, no trailing index.html). Each published page is
+        -- reachable at exactly one canonical URL; alternative paths
+        -- (with/without trailing slash, http variants) 301-redirect to
+        -- the canonical.
+
+    @guarantee MedicalContentTrustSignals
+        -- Pages of type MedicalWebPage include author attribution
+        -- (Physician schema for Marcia), dateModified, citation links
+        -- where applicable, and language metadata (es-CL). This is
+        -- relevant for Google's YMYL (Your Money or Your Life) ranking
+        -- treatment of medical content.
+
+    @guidance
+        -- Submit /sitemap.xml to Google Search Console and Bing Webmaster
+        -- Tools after the first deploy. Reuse the same site_description
+        -- as the homepage meta description. Keep meta_description under
+        -- 160 characters; longer descriptions are truncated by Google.
+        -- Generate a static og-default.png at /assets/og-default.png that
+        -- doubles as the social-share fallback for pages without a
+        -- bespoke image.
+}
+
+surface GlossaryTooltipBehaviour {
+    facing reader: Reader
+    context term: GlossaryTerm where status = published
+
+    exposes:
+        term.term
+        term.definition
+
+    provides:
+        VisitorActivatesGlossaryTerm(reader, page: Page, term)
+        VisitorDismissesGlossaryTooltip(reader, term)
+
+    @guarantee KeyboardOperable
+        -- Tooltip can be opened with Enter or Space when the term has focus,
+        -- dismissed with Escape, and never traps focus.
+
+    @guarantee NotHoverOnly
+        -- Hover may reveal the tooltip on pointer devices, but the term is
+        -- always also activatable via tap, click and keyboard. Hover alone
+        -- is never the only way to access the definition.
+
+    @guarantee FallbackToIndex
+        -- If the tooltip cannot render (no JS, screen reader, print), the
+        -- term renders as a regular link to /glosario/#<slug>.
+
+    @guidance
+        -- Visually mark a term inline with a subtle dotted underline using
+        -- the accent colour at 60% opacity, plus a "?" suffix on print and
+        -- high-contrast mode.
+}
+
+surface CuratorWorkflow {
+    -- The repository-side experience for curating scraped drafts.
+    -- This is a documentary surface; the actual UI is git + an editor.
+    facing curator: Curator
+
+    exposes:
+        Pages where status in {scraped, in_review}
+        GlossaryTerms where status in {scraped, in_review}
+
+    provides:
+        CuratorOpensDraft(curator, draft: Page)
+        CuratorPublishesPage(curator, page: Page)
+        CuratorDiscardsPage(curator, page: Page, reason?)
+        CuratorOpensTerm(curator, term: GlossaryTerm)
+        CuratorPublishesTerm(curator, term: GlossaryTerm)
+
+    @guidance
+        -- Drafts live under _drafts/ (Jekyll convention). Publishing means
+        -- moving the file to the appropriate _pages/ or _glossary/
+        -- collection and merging the change to the default branch, which
+        -- triggers GitHub Pages to rebuild and deploy.
+}
+
+surface DeploymentTarget {
+    -- The boundary between this spec and GitHub Pages.
+    facing host: Visitor    -- placeholder; the real counterpart is GH Pages
+
+    exposes:
+        SiteIdentity_default.primary_domain
+        SiteIdentity_default.locale
+
+    @guarantee CustomDomain
+        -- Site is reachable at https://cirugiademama.cl with HTTPS enforced.
+        -- A CNAME file at the repo root carries the domain.
+
+    @guarantee PublicRepoUnlinkedFromSite
+        -- The repository is public (required for free GitHub Pages with a
+        -- custom domain) but no link to the GitHub repo is rendered on the
+        -- site. The "Edit on GitHub" or "View source" affordances are off.
+
+    @guidance
+        -- DNS: A/AAAA records point cirugiademama.cl to GitHub Pages IPs.
+        -- HSTS preload is optional but recommended.
+}
+
+------------------------------------------------------------
+-- Deferred Specifications
+------------------------------------------------------------
+
+-- The migration tooling has its own implementation contract: parsing the
+-- WordPress XML, stripping shortcodes, downloading attachments, mapping
+-- legacy categories to sections, and emitting Markdown front matter.
+deferred WordPressMigration          -- see: scripts/migrate.md (when written)
+
+------------------------------------------------------------
+-- Open Questions
+------------------------------------------------------------
+
+-- Resolved during elicitation (kept here as decision log):
+--   - Contact: Clínica Santa María, Av. Santa María 0500, Providencia,
+--     +56 2 2913 0000. (See ContactBlock default.)
+--   - Color scheme: light and dark, honouring prefers-color-scheme with
+--     a manual auto/light/dark toggle. (See SiteIdentity.color_schemes.)
+--   - Navigation: top menu only, no sub-section sidebar.
+
+open question "Marcia's photo and bio — is there a professional portrait
+              and short biography to render at /marcia/, or is that page
+              text-only? If a portrait exists, it should also be the
+              default og:image for the /marcia/ page (Physician schema)."
+
+open question "Does the curation step include re-illustrating any pages?
+              Some legacy images are low-resolution screenshots; replacing
+              them is out of scope unless explicitly requested."
+
+open question "Static search — there are 33 pages and 47 glossary terms.
+              A client-side index (e.g. lunr.js built at deploy time)
+              would aid navigation but adds JavaScript and a build step.
+              Defer until the site is live and behaviour is observed."
+
+open question "Citations — should medical pages include references to
+              source studies in a structured way (linked endnotes,
+              schema.org citation property)? This strengthens YMYL
+              ranking and patient trust but requires editorial work."
+
+open question "Search Console verification — should we register the site
+              with Google Search Console and Bing Webmaster Tools at
+              launch? If yes, the verification meta tag goes in
+              SiteIdentity.search_console_verification."
+
+open question "OG default image — does Marcia have a preferred photo or
+              illustration for the default 1200x630 social card, or do we
+              produce a typographic card from the site title?"

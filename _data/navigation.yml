@@ -1,0 +1,93 @@
+# Top-level navigation. Order matters.
+primary:
+  - title: "El cáncer"
+    key: el-cancer
+    url: "/que-es-el-cancer/"
+    children:
+      - title: "¿Qué es el Cáncer?"
+        url: "/que-es-el-cancer/"
+      - title: "¿Cuál es mi riesgo?"
+        url: "/mi-riesgo/"
+      - title: "Etapas del Cáncer"
+        url: "/etapas-del-cancer/"
+      - title: "Cáncer de Mama en Hombres"
+        url: "/cancer-de-mama-en-hombres/"
+      - title: "Síntomas"
+        url: "/sintomas/"
+
+  - title: "Detección"
+    key: deteccion
+    url: "/autoexamen-mamario/"
+    children:
+      - title: "Autoexamen Mamario"
+        url: "/autoexamen-mamario/"
+      - title: "Examen físico por especialista"
+        url: "/examen-fisico-por-especialista/"
+      - title: "Mamografía"
+        url: "/mamografia/"
+      - title: "Mamografía 3D"
+        url: "/mamografia-3d/"
+      - title: "Ecografía"
+        url: "/ecografia/"
+      - title: "Resonancia Magnética"
+        url: "/resonancia-magnetica/"
+      - title: "Biopsia"
+        url: "/biopsia/"
+
+  - title: "Tipos"
+    key: tipos
+    url: "/cancer-in-situ/"
+    children:
+      - title: "Cáncer In-situ"
+        url: "/cancer-in-situ/"
+      - title: "Cáncer Invasor"
+        url: "/cancer-invasor/"
+      - title: "Cáncer Inflamatorio"
+        url: "/cancer-inflamatorio/"
+      - title: "Enfermedad de Paget"
+        url: "/enfermedad-de-paget/"
+      - title: "Tipos Especiales"
+        url: "/tipos-especiales/"
+
+  - title: "Tratamiento"
+    key: tratamiento
+    url: "/cirugia/"
+    children:
+      - title: "Cirugía"
+        url: "/cirugia/"
+      - title: "Radioterapia"
+        url: "/radioterapia/"
+      - title: "Quimioterapia"
+        url: "/quimioterapia/"
+      - title: "Terapia Hormonal"
+        url: "/terapia-hormonal/"
+      - title: "Terapias Target"
+        url: "/herceptina/"
+
+  - title: "Post cáncer"
+    key: post-cancer
+    url: "/recurrencia/"
+    children:
+      - title: "Recurrencia"
+        url: "/recurrencia/"
+      - title: "Cuidados del Brazo (Linfedema)"
+        url: "/linfedema/"
+      - title: "Fertilidad y Sexualidad"
+        url: "/fertilidad-y-sexualidad/"
+      - title: "Alimentación y Ejercicio"
+        url: "/alimentacion-y-ejercicio/"
+
+  - title: "Enfermedades Benignas"
+    key: enfermedades-benignas
+    url: "/tumores-benignos/"
+    children:
+      - title: "Tumores Benignos"
+        url: "/tumores-benignos/"
+      - title: "Ginecomastia"
+        url: "/ginecomastia/"
+
+secondary:
+  - title: "Dra. Marcia Valenzuela"
+    url: "/marcia/"
+  - title: "Glosario"
+    url: "/glosario/"
