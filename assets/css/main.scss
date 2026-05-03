@@ -881,10 +881,55 @@ th { font-weight: 600; color: var(--text); }
   font-size: var(--fs-sm);
   display: flex;
   justify-content: space-between;
+  align-items: center;
   flex-wrap: wrap;
-  gap: var(--sp-3);
+  gap: var(--sp-4);
 }
 .footer-copy { margin: 0; }
+.footer-meta > p:last-child { margin: 0; }
+
+/* Reusable CTA button — primary action style */
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.7em 1.5em;
+  background: var(--accent-strong);
+  color: #ffffff;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: var(--fs-base);
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgba(136, 14, 79, 0.18),
+              0 8px 18px rgba(136, 14, 79, 0.12);
+  transition: transform .15s, box-shadow .15s, background .15s;
+}
+.cta-button:visited { color: #ffffff; }
+.cta-button:hover {
+  background: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(136, 14, 79, 0.26),
+              0 12px 22px rgba(136, 14, 79, 0.18);
+}
+.cta-button:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+.cta-button .cta-arrow {
+  font-size: 1.1em;
+  line-height: 1;
+  transition: transform .15s;
+}
+.cta-button:hover .cta-arrow { transform: translateX(3px); }
+
+/* Dark scheme: white text against pink stays AA, but lift the button
+   so it doesn't feel painted on the dark surface. */
+[data-color-scheme="dark"] .cta-button,
+[data-color-scheme="auto"] .cta-button {
+  /* keep accent-strong fallback; nothing extra needed since the variable
+     already shifts in dark mode. The key is the bright CTA color stays
+     constant for brand recognition. */
+}
 
 /* ==========================================================================
    Print
