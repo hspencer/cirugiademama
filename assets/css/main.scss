@@ -79,10 +79,9 @@
   --shadow:        0 1px 2px rgba(0, 0, 0, .5), 0 4px 12px rgba(0, 0, 0, .35);
 }
 
-[data-color-scheme="dark"]            { @include dark-tokens; }
-[data-color-scheme="auto"] {
-  @media (prefers-color-scheme: dark) { @include dark-tokens; }
-}
+/* Two-state toggle: dark is the default and applied unconditionally
+   when no explicit value is set. Light tokens stay on :root. */
+[data-color-scheme="dark"] { @include dark-tokens; }
 
 /* ==========================================================================
    Reset / base
@@ -178,7 +177,14 @@ p, ul, ol, dl, blockquote, figure {
 }
 
 ul, ol { padding-left: 1.4em; }
-li + li { margin-top: var(--sp-2); }
+
+/* Vertical breathing room between prose list items only.
+   Scoped to body content so it never affects grid / flex collections
+   (home cards, glossary letter index, top nav, page-siblings, etc.). */
+.page-body li + li,
+.home-intro li + li {
+  margin-top: var(--sp-2);
+}
 
 blockquote {
   border-left: 4px solid var(--accent);
@@ -313,8 +319,6 @@ th { font-weight: 600; color: var(--text); }
   align-items: center;
   justify-content: center;
 }
-.site-nav-list  > li,
-.site-nav-secondary > li { margin: 0; }   /* override generic li+li margin */
 .site-nav-secondary { font-size: var(--fs-xs); }
 .site-nav-list      { font-size: var(--fs-sm); }
 
@@ -435,54 +439,126 @@ th { font-weight: 600; color: var(--text); }
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   height: 28px;
   line-height: 1;
 }
 .color-scheme-toggle:hover { border-color: var(--accent); color: var(--accent-strong); }
-.color-scheme-toggle .color-scheme-label {
-  display: none;
-}
+.color-scheme-toggle .color-scheme-label { display: none; }
 .color-scheme-icon::before {
-  content: "◐";
+  /* Default (dark mode) shows a sun: clicking will switch to light. */
+  content: "☀";
   font-size: 1em;
   line-height: 1;
 }
-[data-color-scheme="light"] .color-scheme-icon::before { content: "☀"; }
-[data-color-scheme="dark"]  .color-scheme-icon::before { content: "☾"; }
-@media (max-width: 800px) {
-  .color-scheme-toggle .color-scheme-label { display: inline; }
-}
+[data-color-scheme="light"] .color-scheme-icon::before { content: "☾"; }
 
 @media (max-width: 900px) {
   .site-header-inner {
     grid-template-columns: 1fr auto auto;
   }
   .nav-toggle { display: inline-flex; }
+
+  /* Compact brand: hide tagline on small screens. */
+  .site-brand-subtitle { display: none; }
+
+  /* Color-scheme toggle: square, same height as the hamburger. */
+  .color-scheme-toggle {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: var(--radius-md);
+  }
   .site-nav {
     grid-column: 1 / -1;
     order: 4;
     flex-direction: column;
     align-items: stretch;
-    gap: var(--sp-2);
+    /* Override the desktop justify-content: center — in column flow with
+       a constrained max-height it would centre-align the menu and push
+       the first items above the visible area. Anchor to the top instead. */
+    justify-content: flex-start;
+    gap: 0;
     width: 100%;
     margin-top: var(--sp-3);
     padding-top: var(--sp-3);
     border-top: 1px solid var(--border);
     display: none;
     justify-self: stretch;
+    /* Override desktop width:max-content; on mobile the nav must span
+       the full row of the grid so links can hit the edges. */
+    max-width: 100%;
   }
-  .site-header[data-nav-open="true"] .site-nav { display: flex; }
-  .site-nav-list,
-  .site-nav-secondary { flex-direction: column; gap: 0; }
-  .site-nav-list > .site-nav-item > a,
-  .site-nav-secondary a {
+  .site-header[data-nav-open="true"] .site-nav {
     display: flex;
-    padding: var(--sp-3) 0;
-    border-bottom: 1px solid var(--border);
+    /* Constrain to the viewport so long menus scroll instead of being
+       cut off by the sticky header. dvh excludes mobile browser chrome
+       (address bar) so the visible area is honoured even after toolbars
+       collapse. vh is a fallback for older browsers. */
+    max-height: calc(100vh - 4.5rem);
+    max-height: calc(100dvh - 4.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    /* Generous top space so the first item never sits flush against
+       the sticky header border. */
+    padding: var(--sp-5) 0 var(--sp-6);
+    margin-top: var(--sp-3);
   }
 
-  /* On mobile, submenus are inline (no overlay) and always expanded. */
+  /* Strip every list of inherited padding/margin so items use the full
+     width and no level indents further than its parent. */
+  .site-nav,
+  .site-nav ul,
+  .site-nav li {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+  .site-nav { padding: var(--sp-5) 0 var(--sp-6); }
+
+  .site-nav-list,
+  .site-nav-secondary {
+    display: flex;
+    flex-direction: column;
+    /* Override desktop align-items: center / justify-content: center.
+       In column flow those would centre each link to its own width,
+       producing the irregular indentation observed for items like
+       "Tipos" and "Tratamiento". Stretch + flex-start anchors every
+       link to the same left edge. */
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0;
+    width: 100%;
+  }
+
+  /* Every link is a full-width block. Padding lives on the link itself
+     so the touch target spans the entire row regardless of nesting. */
+  .site-nav a,
+  .site-nav-list > .site-nav-item > a,
+  .site-nav-submenu a,
+  .site-nav-secondary a {
+    display: block;
+    width: 100%;
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    white-space: normal;
+  }
+
+  /* Parent items: subtle, all-caps, accent colour. */
+  .site-nav-list > .site-nav-item > a {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent-strong);
+  }
+  .site-nav-secondary a {
+    font-size: var(--fs-sm);
+  }
+
+  /* Submenus inline, always visible, no extra background or border. */
   .site-nav-item.has-submenu { position: static; }
   .site-nav-submenu {
     position: static;
@@ -491,13 +567,15 @@ th { font-weight: 600; color: var(--text); }
     transform: none;
     box-shadow: none;
     border: none;
-    background: var(--bg-muted);
-    border-radius: var(--radius-sm);
-    margin: 0 0 var(--sp-2) var(--sp-4);
+    background: transparent;
+    border-radius: 0;
     min-width: 0;
-    padding: var(--sp-2) 0;
   }
-  .site-nav-submenu a { padding: var(--sp-2) var(--sp-3); white-space: normal; }
+  .site-nav-submenu a { font-weight: 400; }
+  /* Last child of every list drops the bottom border to avoid double lines. */
+  .site-nav-list > li:last-child > a,
+  .site-nav-submenu li:last-child a { border-bottom: none; }
+
   .site-nav-caret { display: none; }
 }
 
@@ -581,11 +659,16 @@ th { font-weight: 600; color: var(--text); }
   margin-top: var(--sp-2);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 900px) {
+  /* On mobile, in-text images stop floating: they sit on their own line,
+     full-width within the column, and clear any prior float so subsequent
+     content never wraps around them. */
   .page-body img.img-in-text {
     float: none;
-    margin: var(--sp-3) auto;
+    clear: both;
     display: block;
+    margin: var(--sp-4) auto;
+    max-width: 100%;
   }
 }
 
@@ -626,6 +709,49 @@ th { font-weight: 600; color: var(--text); }
   border-top: 1px solid var(--border);
   font-size: var(--fs-sm);
   color: var(--text-muted);
+}
+
+/* ==========================================================================
+   FAQ — Preguntas y Respuestas
+   ========================================================================== */
+
+.faq h3 {
+  /* Question: distinct, prominent, accent-coloured, with a left rail. */
+  margin: var(--sp-7) 0 var(--sp-3);
+  padding: 0 0 0 var(--sp-4);
+  border-left: 3px solid var(--accent);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: var(--lh-snug);
+  color: var(--accent-strong);
+  letter-spacing: -0.005em;
+}
+.faq h3:first-child { margin-top: 0; }
+
+.faq h3 + p {
+  /* Reset top margin on the first paragraph of the answer for tight pairing. */
+  margin-top: 0;
+}
+
+.faq p {
+  /* Answer: regular prose, slightly more comfortable line-height to make
+     the contrast with the question heading visible at a glance. */
+  font-size: var(--fs-base);
+  line-height: var(--lh-loose);
+  color: var(--text);
+}
+
+/* Subtle separator between Q&A pairs — only when an h3 is followed by
+   another h3 or comes after content. */
+.faq h3:not(:first-child)::before {
+  content: "";
+  display: block;
+  width: 4rem;
+  height: 1px;
+  background: var(--border);
+  margin: 0 0 var(--sp-5) calc(-1 * var(--sp-4));
+  position: relative;
+  top: calc(-1 * var(--sp-4));
 }
 
 /* ==========================================================================
@@ -777,8 +903,37 @@ th { font-weight: 600; color: var(--text); }
 .glossary-list dd {
   margin: var(--sp-2) 0 0;
   color: var(--text-muted);
+  position: relative;
+  padding-right: 2.25rem;       /* room for the back-to-index arrow */
 }
 .glossary-list dd p:last-child { margin-bottom: 0; }
+
+.glossary-back {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-soft);
+  text-decoration: none;
+  font-size: 0.95rem;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity .15s, border-color .15s, color .15s, transform .15s;
+}
+.glossary-back:hover,
+.glossary-back:focus-visible {
+  opacity: 1;
+  color: var(--accent-strong);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
 
 /* Inline glossary tooltip trigger.
    The element is a <button>; reset every browser default so it reads as

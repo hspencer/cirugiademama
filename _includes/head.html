@@ -3,14 +3,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
-  <!-- Color scheme: applied before paint to avoid FOUC -->
+  <!-- Color scheme: applied before paint to avoid FOUC. Defaults to dark. -->
   <script>
     (function () {
       try {
         var stored = localStorage.getItem("color-scheme");
-        var scheme = stored || "auto";
+        var scheme = (stored === "light" || stored === "dark") ? stored : "dark";
         document.documentElement.dataset.colorScheme = scheme;
-      } catch (e) {}
+      } catch (e) {
+        document.documentElement.dataset.colorScheme = "dark";
+      }
     })();
   </script>
 

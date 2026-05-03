@@ -11,9 +11,9 @@ layout: default
     {{ content }}
   </div>
 
-  {% assign terms = site.glossary | sort: "term" %}
+  {% assign terms = site.glossary | sort_natural: "term" %}
   {% if terms.size > 0 %}
-    <nav class="glossary-letters" aria-label="Saltar a una letra">
+    <nav id="indice-letras" class="glossary-letters" aria-label="Saltar a una letra">
       {% assign letters = "" | split: "" %}
       {% for term in terms %}
         {% assign letter = term.term | slice: 0 | upcase %}
@@ -21,6 +21,7 @@ layout: default
           {% assign letters = letters | push: letter %}
         {% endunless %}
       {% endfor %}
+      {% assign letters = letters | sort %}
       <ul>
         {% for letter in letters %}
           <li><a href="#letra-{{ letter | downcase }}">{{ letter }}</a></li>
@@ -41,7 +42,13 @@ layout: default
         <dt id="{{ term.slug }}" itemscope itemtype="https://schema.org/DefinedTerm">
           <span itemprop="name">{{ term.term }}</span>
         </dt>
-        <dd itemprop="description">{{ term.content | markdownify }}</dd>
+        <dd itemprop="description">
+          {{ term.content | markdownify }}
+          <a class="glossary-back" href="#indice-letras"
+             aria-label="Volver al índice de letras">
+            <span aria-hidden="true">↑</span>
+          </a>
+        </dd>
       {% endfor %}
       {% unless current_letter == "" %}</section>{% endunless %}
     </dl>

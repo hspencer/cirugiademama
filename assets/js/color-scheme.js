@@ -1,18 +1,20 @@
 /**
- * Color scheme toggle: auto → light → dark → auto
+ * Color scheme toggle: dark ⇄ light (dark is the default).
  * Persists in localStorage, applies via [data-color-scheme] on <html>.
  * Initial value applied inline in <head> before paint to avoid FOUC.
  */
 (function () {
   "use strict";
 
-  var STATES = ["auto", "light", "dark"];
-  var LABELS = { auto: "Auto", light: "Claro", dark: "Oscuro" };
+  var DEFAULT = "dark";
+  var LABELS = { dark: "Oscuro", light: "Claro" };
   var STORAGE_KEY = "color-scheme";
 
   function read() {
-    try { return localStorage.getItem(STORAGE_KEY) || "auto"; }
-    catch (e) { return "auto"; }
+    try {
+      var v = localStorage.getItem(STORAGE_KEY);
+      return (v === "light" || v === "dark") ? v : DEFAULT;
+    } catch (e) { return DEFAULT; }
   }
   function write(value) {
     try { localStorage.setItem(STORAGE_KEY, value); } catch (e) {}
@@ -20,8 +22,8 @@
   function apply(value) {
     document.documentElement.dataset.colorScheme = value;
   }
-  function next(current) {
-    return STATES[(STATES.indexOf(current) + 1) % STATES.length];
+  function toggle(current) {
+    return current === "dark" ? "light" : "dark";
   }
 
   function initToggle(button) {
@@ -32,11 +34,12 @@
       if (label) label.textContent = LABELS[current];
       button.setAttribute(
         "aria-label",
-        "Cambiar tema (actual: " + LABELS[current] + ")"
+        "Cambiar al tema " + (current === "dark" ? "claro" : "oscuro")
       );
+      button.setAttribute("aria-pressed", current === "dark" ? "true" : "false");
     }
     button.addEventListener("click", function () {
-      var newState = next(read());
+      var newState = toggle(read());
       write(newState);
       apply(newState);
       refresh();
