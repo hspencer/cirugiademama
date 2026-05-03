@@ -634,7 +634,7 @@ th { font-weight: 600; color: var(--text); }
 /* Opt-in float: any image marked .img-in-text wraps inline with body text. */
 .page-body img.img-in-text {
   float: left;
-  margin: 0 1.2em 1em 0;
+  margin: 1em 1.2em 1em 0;
 }
 
 /* Headings, figures and rules clear floats so sections don't collapse. */
