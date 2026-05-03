@@ -25,6 +25,16 @@
   --focus-ring:    #5d1049;
   --shadow:        0 1px 2px rgba(56, 12, 32, .08), 0 4px 12px rgba(56, 12, 32, .06);
 
+  /* CTA — primary call-to-action button.
+     Tokens are scheme-aware to keep WCAG AA contrast in both modes:
+     light: dark pink on white text  →  ratio ≈ 9.7:1 (AAA)
+     dark:  mid pink on near-black   →  ratio ≈ 9.5:1 (AAA) */
+  --cta-bg:        #880e4f;
+  --cta-bg-hover:  #ad1457;
+  --cta-fg:        #ffffff;
+  --cta-shadow:    0 2px 6px rgba(136, 14, 79, .22), 0 8px 18px rgba(136, 14, 79, .14);
+  --cta-shadow-hover: 0 4px 10px rgba(136, 14, 79, .32), 0 12px 22px rgba(136, 14, 79, .22);
+
   /* Type scale (modular, base 1.125rem ~ 18px) */
   --font-sans: "Lexend", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --fs-base:   1.125rem;
@@ -77,6 +87,13 @@
   --link-visited:  #ce93d8;
   --focus-ring:    #f8bbd0;
   --shadow:        0 1px 2px rgba(0, 0, 0, .5), 0 4px 12px rgba(0, 0, 0, .35);
+
+  /* CTA in dark mode: mid pink (saturated, not washed-out) on dark text. */
+  --cta-bg:        #f48fb1;
+  --cta-bg-hover:  #f8bbd0;
+  --cta-fg:        #1a0e14;
+  --cta-shadow:    0 2px 6px rgba(0, 0, 0, .55), 0 8px 18px rgba(0, 0, 0, .35);
+  --cta-shadow-hover: 0 4px 10px rgba(0, 0, 0, .65), 0 12px 24px rgba(0, 0, 0, .45);
 }
 
 /* Two-state toggle: dark is the default and applied unconditionally
@@ -1043,28 +1060,30 @@ th { font-weight: 600; color: var(--text); }
 .footer-copy { margin: 0; }
 .footer-meta > p:last-child { margin: 0; }
 
-/* Reusable CTA button — primary action style */
+/* Reusable CTA button — primary action style.
+   Colours come from --cta-bg / --cta-fg tokens that adapt per scheme so
+   contrast stays AA in both light and dark. */
 .cta-button {
   display: inline-flex;
   align-items: center;
   gap: 0.5em;
   padding: 0.7em 1.5em;
-  background: var(--accent-strong);
-  color: #ffffff;
+  background: var(--cta-bg);
+  color: var(--cta-fg);
   border-radius: 999px;
   font-weight: 600;
   font-size: var(--fs-base);
   text-decoration: none;
-  box-shadow: 0 2px 6px rgba(136, 14, 79, 0.18),
-              0 8px 18px rgba(136, 14, 79, 0.12);
-  transition: transform .15s, box-shadow .15s, background .15s;
+  box-shadow: var(--cta-shadow);
+  transition: transform .15s, box-shadow .15s, background .15s, color .15s;
 }
-.cta-button:visited { color: #ffffff; }
-.cta-button:hover {
-  background: var(--accent);
+.cta-button:visited { color: var(--cta-fg); }
+.cta-button:hover,
+.cta-button:focus-visible {
+  background: var(--cta-bg-hover);
+  color: var(--cta-fg);
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(136, 14, 79, 0.26),
-              0 12px 22px rgba(136, 14, 79, 0.18);
+  box-shadow: var(--cta-shadow-hover);
 }
 .cta-button:focus-visible {
   outline: 3px solid var(--focus-ring);
@@ -1075,16 +1094,8 @@ th { font-weight: 600; color: var(--text); }
   line-height: 1;
   transition: transform .15s;
 }
-.cta-button:hover .cta-arrow { transform: translateX(3px); }
-
-/* Dark scheme: white text against pink stays AA, but lift the button
-   so it doesn't feel painted on the dark surface. */
-[data-color-scheme="dark"] .cta-button,
-[data-color-scheme="auto"] .cta-button {
-  /* keep accent-strong fallback; nothing extra needed since the variable
-     already shifts in dark mode. The key is the bright CTA color stays
-     constant for brand recognition. */
-}
+.cta-button:hover .cta-arrow,
+.cta-button:focus-visible .cta-arrow { transform: translateX(3px); }
 
 /* ==========================================================================
    Print
